@@ -2,6 +2,7 @@ package codec_test
 
 import (
 	"bytes"
+	"sync"
 	"testing"
 
 	"github.com/ganyyy/mynet"
@@ -76,6 +77,59 @@ func JsonTest(t *testing.T, protocol mynet.Protocol) {
 	if sendMsg2 != *(recvMsg2.(*MyMessage2)) {
 		t.Fatalf("message not match %v, %v", sendMsg1, recvMsg1)
 	}
+}
+
+type safeBuffer struct {
+	bytes.Buffer
+	lock sync.Mutex
+}
+
+func (s *safeBuffer) Read(buf []byte) (n int, err error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.Buffer.Read(buf)
+}
+
+func (s *safeBuffer) Write(buf []byte) (n int, err error) {
+	s.lock.Lock()
+	n, err = s.Buffer.Write(buf)
+	s.lock.Unlock()
+	return
+}
+
+func JsonTest2(t *testing.T, protocol mynet.Protocol) {
+	// bytes.Buffer 不适合并发读写
+	var stream safeBuffer
+
+	codec, _ := protocol.NewCodec(&stream)
+
+	var wait sync.WaitGroup
+	const (
+		SendNum = 50
+		RecvNum = 50
+	)
+
+	wait.Add(SendNum + RecvNum)
+	var sendMsg1 = MyMessage1{
+		Field1: "123",
+		Field2: 456,
+	}
+	for i := 0; i < SendNum; i++ {
+		go func() {
+			defer wait.Done()
+			codec.Send(sendMsg1)
+		}()
+	}
+
+	for i := 0; i < RecvNum; i++ {
+		go func() {
+			defer wait.Done()
+			info, err := codec.Receive()
+			t.Logf("[%v]:%v", info, err)
+		}()
+	}
+
+	wait.Wait()
 }
 
 func TestJsonProtocol(t *testing.T) {

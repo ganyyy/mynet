@@ -64,10 +64,10 @@ func FixLen(base mynet.Protocol, n int, byteOrder binary.ByteOrder, maxRecv, max
 		}
 	case 8:
 		proto.headDecoder = func(b []byte) int {
-			return int(byteOrder.Uint32(b))
+			return int(byteOrder.Uint64(b))
 		}
 		proto.headEncoder = func(b []byte, i int) {
-			byteOrder.PutUint32(b, uint32(i))
+			byteOrder.PutUint64(b, uint64(i))
 		}
 	}
 
@@ -88,6 +88,7 @@ func (f *FixLenProtocol) NewCodec(rw io.ReadWriter) (cc mynet.Codec, err error) 
 }
 
 type fixLenReadWriter struct {
+	// 充当临时的缓冲区. 内部的codec会基于这个缓冲区进行解码/编码
 	recvBuf bytes.Reader // 外来的数据写入到recvBuf中, 通过codec.Receive进行解码
 	sendBuf bytes.Buffer // 内部的数据发送到sendBuf中, 通过codec.Send进行编码
 }

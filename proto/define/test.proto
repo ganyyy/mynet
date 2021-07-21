@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package demo;
+option go_package = "mynet/proto/demo";
+
+message Req {
+    string Str = 1;
+}
+
+message Rsp {
+    string Str = 1;
+}
